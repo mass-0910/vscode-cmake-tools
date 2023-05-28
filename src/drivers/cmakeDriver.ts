@@ -1680,6 +1680,18 @@ export abstract class CMakeDriver implements vscode.Disposable {
         return this.cmake.path ? this.cmake.path : "cmake";
     }
 
+    async getOutputEncoding(): Promise<string> {
+        let outputEnc = this.config.outputLogEncoding;
+        if (outputEnc === 'auto') {
+            if (process.platform === 'win32') {
+                outputEnc = await codepages.getWindowsCodepage();
+            } else {
+                outputEnc = 'utf8';
+            }
+        }
+        return outputEnc;
+    }
+
     // Create a command for a given build preset.
     async generateBuildCommandFromPreset(buildPreset: preset.BuildPreset, targets?: string[]): Promise<proc.BuildCommand | null> {
         if (targets && targets.length > 0) {
@@ -1761,14 +1773,6 @@ export abstract class CMakeDriver implements vscode.Disposable {
     private async _doCMakeBuild(targets?: string[], consumer?: proc.OutputConsumer, isBuildCommand?: boolean): Promise<proc.Subprocess | null> {
         const buildcmd = await this.getCMakeBuildCommand(targets);
         if (buildcmd) {
-            let outputEnc = this.config.outputLogEncoding;
-            if (outputEnc === 'auto') {
-                if (process.platform === 'win32') {
-                    outputEnc = await codepages.getWindowsCodepage();
-                } else {
-                    outputEnc = 'utf8';
-                }
-            }
             const useBuildTask: boolean = this.config.buildTask && isBuildCommand === true;
             if (useBuildTask) {
                 const task: CMakeTask | undefined = await CMakeTaskProvider.findBuildTask(this._buildPreset?.name, targets, this.expansionOptions);
@@ -1779,7 +1783,7 @@ export abstract class CMakeDriver implements vscode.Disposable {
                     }
                 }
             } else {
-                const exeOpt: proc.ExecutionOptions = { environment: buildcmd.build_env, outputEncoding: outputEnc };
+                const exeOpt: proc.ExecutionOptions = { environment: buildcmd.build_env, outputEncoding: await this.getOutputEncoding() };
                 this.cmakeBuildRunner.setBuildProcess(this.executeCommand(buildcmd.command, buildcmd.args, consumer, exeOpt));
             }
             const result = await this.cmakeBuildRunner.getResult();

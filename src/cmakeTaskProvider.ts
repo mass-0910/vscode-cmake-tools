@@ -283,7 +283,7 @@ export class CustomBuildTaskTerminal implements vscode.Pseudoterminal, proc.Outp
         return this.closeEmitter.event;
     }
 
-    constructor(private command: string, private targets: string[], private preset?: string, private options?: { cwd?: string ; environment?: Environment }) {
+    constructor(private command: string, private targets: string[], private preset?: string, private options?: { cwd?: string ; environment?: Environment ; outputEncoding?: string }) {
     }
 
     output(line: string): void {
@@ -487,6 +487,7 @@ export class CustomBuildTaskTerminal implements vscode.Pseudoterminal, proc.Outp
         this.writeEmitter.fire(localize("build.started", "{0} task started....", taskName) + endOfLine);
         this.writeEmitter.fire(proc.buildCmdStr(cmakePath, args) + endOfLine);
         try {
+            this.options.outputEncoding = await cmakeDriver.getOutputEncoding();
             this._process = proc.execute(cmakePath, args, this, this.options);
             const result: proc.ExecutionResult = await this._process.result;
             this._process = undefined;
